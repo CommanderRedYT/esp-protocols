@@ -291,9 +291,7 @@ command_result resume_data_mode(CommandableIf *t)
 command_result set_command_mode(CommandableIf *t)
 {
     ESP_LOGV(TAG, "%s", __func__ );
-    const std::string_view pass[] {"NO CARRIER", "OK"};
-    const std::string_view fail[] {"ERROR"};
-    return generic_command(t, "+++", pass, fail, 5000);
+    return generic_command(t, "+++", {"NO CARRIER", "OK"}, {"ERROR"}, 5000);
 }
 
 command_result get_imsi(CommandableIf *t, std::string &imsi_number)
