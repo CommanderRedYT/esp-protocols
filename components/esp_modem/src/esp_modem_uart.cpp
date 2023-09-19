@@ -172,8 +172,6 @@ int UartTerminal::read(uint8_t *data, size_t len)
     length = std::min(len, length);
     if (length > 0) {
         const auto really_gelesen = uart_read_bytes(uart.port, data, length, portMAX_DELAY);
-        ESP_LOGI("TAG", "%p %zd", data, really_gelesen);
-        ESP_LOGI("TAG", "%zd %.*s", really_gelesen, really_gelesen, data);
         return really_gelesen;
     }
     return 0;
@@ -181,7 +179,6 @@ int UartTerminal::read(uint8_t *data, size_t len)
 
 int UartTerminal::write(uint8_t *data, size_t len)
 {
-    ESP_LOGI("TAG", "%zd %.*s", len, len, (const char *)data);
     return uart_write_bytes_compat(uart.port, data, len);
 }
 
