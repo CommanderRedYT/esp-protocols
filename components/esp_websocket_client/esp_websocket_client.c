@@ -1132,15 +1132,23 @@ int esp_websocket_client_send_with_opcode(esp_websocket_client_handle_t client, 
     }
     uint32_t current_opcode = opcode;
     while (widx < len || current_opcode) {  // allow for sending "current_opcode" only message with len==0
-        if (need_write > client->buffer_size) {
-            need_write = client->buffer_size;
+        if (need_write > client->buffer_size - MAX_WEBSOCKET_HEADER_SIZE) {
+            need_write = client->buffer_size - MAX_WEBSOCKET_HEADER_SIZE;
         } else {
             current_opcode |= WS_TRANSPORT_OPCODES_FIN;
         }
-        memcpy(client->tx_buffer, data + widx, need_write);
+        memcpy(client->tx_buffer + MAX_WEBSOCKET_HEADER_SIZE, data + widx, need_write);
         // send with ws specific way and specific opcode
-        wlen = esp_transport_ws_send_raw(client->transport, current_opcode, (char *)client->tx_buffer, need_write,
-                                         (timeout == portMAX_DELAY) ? -1 : timeout * portTICK_PERIOD_MS);
+        wlen = esp_transport_ws_send_raw_optimized(client->transport, current_opcode, (char *)client->tx_buffer, need_write + MAX_WEBSOCKET_HEADER_SIZE,
+                                                   (timeout == portMAX_DELAY) ? -1 : timeout * portTICK_PERIOD_MS);
+        if (wlen >= MAX_WEBSOCKET_HEADER_SIZE)
+            wlen -= MAX_WEBSOCKET_HEADER_SIZE;
+        else if (wlen > 0)
+        {
+            ESP_LOGW(TAG, "couldnt write enough for ws header, wlen=%d", wlen);
+            wlen = 0;
+        }
+
         if (wlen < 0 || (wlen == 0 && need_write != 0)) {
             ret = wlen;
             esp_websocket_free_buf(client, true);
