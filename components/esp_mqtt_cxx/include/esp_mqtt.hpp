@@ -7,7 +7,10 @@
 
 #include <string_view>
 #ifndef __cpp_exceptions
-#error MQTT class can only be used when __cpp_exceptions is enabled. Enable CONFIG_COMPILER_CXX_EXCEPTIONS in Kconfig
+#if __has_include(<expected>)
+#include <expected>
+#define ESP_MQTT_NO_EXCEPTIONS 1
+#endif
 #endif
 
 #include <optional>
@@ -23,9 +26,20 @@ namespace idf::mqtt {
 
 constexpr auto *TAG = "mqtt_client_cpp";
 
+#ifndef ESP_MQTT_NO_EXCEPTIONS
 struct MQTTException : ESPException {
     using ESPException::ESPException;
 };
+#else
+using MQTTException = std::expected<std::string, int>;
+
+#undef CHECK_THROW_SPECIFIC
+#define CHECK_THROW_SPECIFIC(error_, exception_type_)               \
+    do {                                                            \
+        esp_err_t result = (error_);                                \
+        if (result != ESP_OK) { ESP_LOGE(TAG, "Error: %s", esp_err_to_name(result)); return; } \
+    } while (0)
+#endif
 
 /**
  * @brief QoS for publish and subscribe

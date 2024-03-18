@@ -141,6 +141,7 @@ namespace idf::mqtt {
 
 Client::Client(BrokerConfiguration const &broker, ClientCredentials const  &credentials, Configuration const &config): Client(make_config(broker, credentials, config))  {}
 
+#ifndef ESP_MQTT_NO_EXCEPTIONS
 Client::Client(esp_mqtt_client_config_t const &config) :  handler(esp_mqtt_client_init(&config))
 {
     if (handler == nullptr) {
@@ -149,7 +150,17 @@ Client::Client(esp_mqtt_client_config_t const &config) :  handler(esp_mqtt_clien
     CHECK_THROW_SPECIFIC(esp_mqtt_client_register_event(handler.get(), MQTT_EVENT_ANY, mqtt_event_handler, this), mqtt::MQTTException);
     CHECK_THROW_SPECIFIC(esp_mqtt_client_start(handler.get()), mqtt::MQTTException);
 }
-
+#else
+Client::Client(esp_mqtt_client_config_t const &config) :  handler(esp_mqtt_client_init(&config))
+{
+    if (handler == nullptr) {
+        ESP_LOGE(TAG, "Failed to initialize MQTT client");
+        return;
+    };
+    CHECK_THROW_SPECIFIC(esp_mqtt_client_register_event(handler.get(), MQTT_EVENT_ANY, mqtt_event_handler, this), mqtt::MQTTException);
+    CHECK_THROW_SPECIFIC(esp_mqtt_client_start(handler.get()), mqtt::MQTTException);
+}
+#endif
 
 void Client::mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_t event_id, void *event_data) noexcept
 {
@@ -272,7 +283,12 @@ bool is_valid(std::string::const_iterator first, std::string::const_iterator las
 Filter::Filter(std::string user_filter) : filter(std::move(user_filter))
 {
     if (!is_valid(filter.begin(), filter.end())) {
+#ifndef ESP_MQTT_NO_EXCEPTIONS
         throw std::domain_error("Forbidden Filter string");
+#else
+        ESP_LOGE(TAG, "Forbidden Filter string");
+        return;
+#endif
     }
 }
 
