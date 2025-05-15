@@ -36,6 +36,8 @@ typedef enum {
     WEBSOCKET_EVENT_DATA,           /*!< When receiving data from the server, possibly multiple portions of the packet */
     WEBSOCKET_EVENT_CLOSED,         /*!< The connection has been closed cleanly */
     WEBSOCKET_EVENT_BEFORE_CONNECT, /*!< The event occurs before connecting */
+    WEBSOCKET_EVENT_BEGIN,          /*!< The event occurs once after thread creation, before event loop */
+    WEBSOCKET_EVENT_FINISH,         /*!< The event occurs once after event loop, before thread destruction */
     WEBSOCKET_EVENT_MAX
 } esp_websocket_event_id_t;
 
@@ -209,6 +211,48 @@ esp_err_t esp_websocket_client_start(esp_websocket_client_handle_t client);
  * @return     esp_err_t
  */
 esp_err_t esp_websocket_client_stop(esp_websocket_client_handle_t client);
+
+/**
+ * @brief      Initiate an asynchronus stop of the WebSocket connection without
+ *             websocket closing handshake
+ *
+ * This API initiates a non-blocking asynchronus stop of ws client. This will
+ * close TCP connection later directly without sending close frames. This is
+ * method is similar to esp_websocket_client_stop() but does not block the calling
+ * task. It is required to then later periodically call
+ * esp_websocket_client_is_already_stopped() to find out when its done and to
+ * finalize the closing of the websocket client.
+ *
+ *  Notes:
+ *  - Cannot be called from the websocket event handler
+ *
+ * @param[in]  client  The client
+ *
+ * @return     esp_err_t
+ */
+esp_err_t esp_websocket_client_initiate_stop(esp_websocket_client_handle_t client);
+
+/**
+ * @brief      After an asynchronus stop was initiated, this method returns if it is done already.
+ *             If this method returns true, it also performed some final cleanup. It should then not
+ *             be called anymore unless esp_websocket_client_initiate_stop() is called again.
+ *
+ * @param[in]  client  The client
+ *
+ * @return
+ *     - bool if it is done or not
+ */
+bool esp_websocket_client_is_already_stopped(esp_websocket_client_handle_t client);
+
+/**
+ * @brief      Closes a websocket connection and causes a reconnect to happen
+ *
+ * @param[in]  client      The client
+ * @param[in]  error_type  The error type
+ *
+ * @return     esp_err_t
+ */
+esp_err_t esp_websocket_client_abort_connection(esp_websocket_client_handle_t client, esp_websocket_error_type_t error_type);
 
 /**
  * @brief      Destroy the WebSocket connection and free all resources.
